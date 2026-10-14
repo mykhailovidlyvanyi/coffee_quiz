@@ -221,6 +221,22 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
   display: block;
   margin-top: 12px;
 }
+  .site-footer {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: .8125rem;
+}
+
+.site-footer a {
+  color: var(--muted);
+  text-underline-offset: 3px;
+}
+
+.site-footer a:hover {
+  color: var(--ink);
+}
 </style>
 
 </head>
@@ -347,7 +363,13 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
     </details>
   </section>
 
-  <p class="fine foot">Morning Dial is a fictional brand made for a concept demo. Prices, origins and the discount code are examples.</p>
+    <p class="fine foot">
+    Morning Dial is a fictional brand made for a concept demo.
+    Prices, origins and the discount code are examples.
+  </p>
+  <footer class="site-footer">
+    <a href="./privacy.html">Privacy Policy</a>
+  </footer>
 </div>
 
 <script>
@@ -857,6 +879,9 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
           type="button">
     More about analytics
   </button>
+  <a class="link privacy-settings-link" href="./privacy.html">
+    Read our Privacy Policy
+  </a>
   <p id="privacyMore" hidden style="margin-top:10px">
     The quiz can work without optional analytics. Your choice is saved
     in this browser. You can change it by clearing this site's saved
