@@ -61,6 +61,40 @@ h1, h2, h3, p { margin: 0; }
 
 /* Screens */
 .screen { padding-block: clamp(28px, 6vw, 64px); animation: rise .28s ease-out both; }
+
+/* Matching loader */
+.loading-screen {
+  min-height: 55vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 680px;
+  gap: 24px;
+}
+
+.loading-track {
+  width: 100%;
+  height: 8px;
+  background: var(--track);
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.loading-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+.loading-step {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 
 .display { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; line-height: .92; letter-spacing: -.005em; text-wrap: balance; }
@@ -286,6 +320,33 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
     <div class="nav"><button class="link" type="button" id="back">Back</button></div>
   </section>
 
+  <!-- 2.5 Matching loader -->
+<section class="screen loading-screen" id="loading" hidden>
+  <p class="eyebrow">Building your coffee profile</p>
+
+  <h1 class="display h-lg" id="loadingTitle" tabindex="-1" data-focus>
+    Analyzing your answers
+  </h1>
+
+  <p class="lede" id="loadingSubtitle">
+    Getting to know your taste.
+  </p>
+
+  <div
+    class="loading-track"
+    role="progressbar"
+    aria-label="Preparing your coffee profile"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow="0"
+    id="loadingProgress"
+  >
+    <div class="loading-bar" id="loadingBar"></div>
+  </div>
+
+  <p class="loading-step" id="loadingStep">Step 1 of 4</p>
+</section>
+  
   <!-- 3. Email gate -->
   <section class="screen" id="gate" hidden>
     <div class="gate-grid">
@@ -486,7 +547,7 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
     pro: 'Each bag names the farm, the lot and the roast date, so you can dial in from batch to batch.'
   };
 
-  var SCREENS = ['intro', 'question', 'gate', 'result'];
+  var SCREENS = ['intro', 'question', 'loading', 'gate', 'result'];
   var state = { i: 0, answers: {}, t0: Date.now(), events: [], lock: false, stage: 'intro' };
 
   function $(s) { return document.querySelector(s); }
@@ -623,8 +684,73 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
   }
 
   function advance() {
-    if (state.i < QUESTIONS.length - 1) { state.i++; renderQuestion(); show('question'); }
-    else { renderGate(); show('gate'); track('gate_view'); }
+    if (state.i < QUESTIONS.length - 1) {
+      state.i++;
+      renderQuestion();
+      show('question');
+    } else {
+      startMatchingLoader();
+    }
+  }
+
+  function startMatchingLoader() {
+    var duration = 4000;
+
+    var steps = [
+      {
+        title: 'Analyzing your answers',
+        subtitle: 'Getting to know your taste.',
+        progress: 15
+      },
+      {
+        title: 'Finding your best match',
+        subtitle: 'Matching your preferences to our roast profiles.',
+        progress: 40
+      },
+      {
+        title: 'Finalizing your profile',
+        subtitle: 'Putting together your personalized brew card.',
+        progress: 70
+      },
+      {
+        title: 'Almost ready',
+        subtitle: 'Your coffee match is just around the corner.',
+        progress: 100
+      }
+    ];
+
+    var startedAt = Date.now();
+    var stepDuration = duration / steps.length;
+
+    function updateStep(index) {
+      var step = steps[index];
+  
+      $('#loadingTitle').textContent = step.title;
+      $('#loadingSubtitle').textContent = step.subtitle;
+      $('#loadingStep').textContent = 'Step ' + (index + 1) + ' of ' + steps.length;
+      $('#loadingBar').style.width = step.progress + '%';
+      $('#loadingProgress').setAttribute('aria-valuenow', step.progress);
+    }
+  
+    show('loading');
+    updateStep(0);
+  
+    var interval = setInterval(function () {
+      var elapsed = Date.now() - startedAt;
+      var index = Math.min(
+        Math.floor(elapsed / stepDuration),
+        steps.length - 1
+      );
+  
+      updateStep(index);
+  
+      if (elapsed >= duration) {
+        clearInterval(interval);
+        renderGate();
+        track('gate_view');
+        show('gate');
+      }
+    }, 50);
   }
 
   function pick(q, o) {
