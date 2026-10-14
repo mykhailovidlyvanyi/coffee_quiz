@@ -664,8 +664,11 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
   }
 
   function toggle(q, o) {
+    if (state.lock) return;
+  
     var cur = state.answers[q.id].slice();
     var at = cur.indexOf(o.v);
+  
     if (at > -1) {
       cur.splice(at, 1);
     } else {
@@ -673,14 +676,40 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
         cur = [];
       } else {
         cur = cur.filter(function (v) {
-          var x = q.options.filter(function (y) { return y.v === v; })[0];
+          var x = q.options.filter(function (y) {
+            return y.v === v;
+          })[0];
+  
           return !(x && x.exclusive);
         });
       }
+  
       cur.push(o.v);
     }
+  
     state.answers[q.id] = cur;
     syncMulti(q);
+  
+    // Automatically continue when the user chooses black coffee.
+    if (q.id === 'addins' && o.v === 'black' && at === -1) {
+      state.lock = true;
+  
+      var btns = $('#opts').querySelectorAll('.opt');
+      for (var k = 0; k < btns.length; k++) {
+        btns[k].disabled = true;
+      }
+  
+      track('answer', q.id + '=' + cur.join('+'), {
+        question_id: q.id,
+        question_number: state.i + 1,
+        answer: cur.slice()
+      });
+  
+      setTimeout(function () {
+        state.lock = false;
+        advance();
+      }, 220);
+    }
   }
 
   function advance() {
