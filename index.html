@@ -175,16 +175,54 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
   .screen, .track i { animation: none; }
   .opt { transition: none; }
 }
+  
+/* Privacy consent */
+.privacy-banner {
+  position: fixed;
+  z-index: 1000;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  max-width: 620px;
+  margin-inline: auto;
+  padding: 22px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+.privacy-banner h2 {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  line-height: 1;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.privacy-banner p {
+  font-size: .9rem;
+  color: var(--muted);
+}
+.privacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.privacy-actions .btn {
+  padding: 14px 16px;
+  font-size: .9rem;
+}
+.privacy-reject {
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+}
+.privacy-settings-link {
+  display: block;
+  margin-top: 12px;
+}
 </style>
 
-<script src="https://cdn.amplitude.com/script/b6d1de74b651df1598e8de27630a337e.js"></script>
-<script>
-// Amplitude ingestion key — public by design; move to an env var when you set up environments.
-try {
-  window.amplitude.add(window.sessionReplay.plugin({ sampleRate: 1 }));
-  window.amplitude.init('b6d1de74b651df1598e8de27630a337e', { "fetchRemoteConfig": true, "autocapture": true });
-} catch (e) { console.warn('Amplitude not loaded, analytics disabled'); }
-</script>
 </head>
 <body>
 <div class="wrap">
@@ -796,5 +834,123 @@ try {
 })();
 </script>
 
+  
+<section class="privacy-banner" id="privacyBanner"
+         role="dialog" aria-labelledby="privacyTitle"
+         aria-describedby="privacyDescription" hidden>
+  <h2 id="privacyTitle">Your privacy matters</h2>
+  <p id="privacyDescription">
+    Morning Dial uses Amplitude to understand how visitors use this quiz.
+    If you accept, analytics and Session Replay may collect information
+    about your interactions with the site. Optional tracking stays off
+    unless you consent.
+  </p>
+  <div class="privacy-actions">
+    <button class="btn" id="acceptAnalytics" type="button">
+      Accept all
+    </button>
+    <button class="btn privacy-reject" id="rejectAnalytics" type="button">
+      Reject optional
+    </button>
+  </div>
+  <button class="link privacy-settings-link" id="privacyDetails"
+          type="button">
+    More about analytics
+  </button>
+  <p id="privacyMore" hidden style="margin-top:10px">
+    The quiz can work without optional analytics. Your choice is saved
+    in this browser. You can change it by clearing this site's saved
+    data. Contact information and analytics data should be handled
+    according to the site's privacy policy.
+  </p>
+</section>
+
+<script>
+(function () {
+  var KEY = 'morningDialAnalyticsConsent';
+  var banner = document.getElementById('privacyBanner');
+
+  function getConsent() {
+    try {
+      return localStorage.getItem(KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveConsent(value) {
+    try {
+      localStorage.setItem(KEY, value);
+    } catch (e) {}
+  }
+
+  function startAnalytics() {
+    if (window.__morningDialAmplitudeStarted) return;
+    window.__morningDialAmplitudeStarted = true;
+
+    var script = document.createElement('script');
+    script.src =
+      'https://cdn.amplitude.com/script/b6d1de74b651df1598e8de27630a337e.js';
+
+    script.onload = function () {
+      try {
+        if (!window.amplitude) return;
+
+        if (window.sessionReplay && window.sessionReplay.plugin) {
+          window.amplitude.add(
+            window.sessionReplay.plugin({ sampleRate: 1 })
+          );
+        }
+
+        window.amplitude.init(
+          'b6d1de74b651df1598e8de27630a337e',
+          {
+            fetchRemoteConfig: true,
+            autocapture: true
+          }
+        );
+      } catch (e) {
+        console.warn('Amplitude initialization failed');
+      }
+    };
+
+    script.onerror = function () {
+      window.__morningDialAmplitudeStarted = false;
+    };
+
+    document.head.appendChild(script);
+  }
+
+  document.getElementById('acceptAnalytics').addEventListener(
+    'click', function () {
+      saveConsent('accepted');
+      banner.hidden = true;
+      startAnalytics();
+    }
+  );
+
+  document.getElementById('rejectAnalytics').addEventListener(
+    'click', function () {
+      saveConsent('rejected');
+      banner.hidden = true;
+    }
+  );
+
+  document.getElementById('privacyDetails').addEventListener(
+    'click', function () {
+      var details = document.getElementById('privacyMore');
+      details.hidden = !details.hidden;
+    }
+  );
+
+  var consent = getConsent();
+
+  if (consent === 'accepted') {
+    startAnalytics();
+  } else if (consent !== 'rejected') {
+    banner.hidden = false;
+  }
+})();
+</script>
 </body>
 </html>
