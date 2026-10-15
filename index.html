@@ -168,6 +168,36 @@ dl > :nth-last-child(-n+2) { border-bottom: 0; }
 .format strong { display: block; margin-bottom: 4px; font-family: var(--font-mono); font-size: .78rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 
 .offer { margin-top: 20px; border: 2px solid var(--ink); border-radius: 3px; background: var(--surface); padding: clamp(20px, 4vw, 34px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 28px; align-items: center; }
+.billing-reminder {
+  margin-top: 20px;
+  padding: 20px 24px;
+  border: 2px solid var(--accent);
+  border-left-width: 8px;
+  background: var(--surface);
+  display: grid;
+  gap: 8px;
+}
+
+.billing-reminder .reminder-label {
+  font-family: var(--font-mono);
+  font-size: .78rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.billing-reminder h2 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.8rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.billing-reminder p {
+  max-width: 60ch;
+  color: var(--muted);
+}
 .price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
 .price .now { font-family: var(--font-display); font-weight: 900; font-size: 3.6rem; line-height: 1; }
 .price s { font-family: var(--font-mono); color: var(--muted); }
@@ -395,6 +425,12 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
       <p class="format"><strong id="formatLabel"></strong><span id="formatLine"></span></p>
     </div>
 
+    <div class="billing-reminder" id="billingReminder" hidden>
+      <p class="reminder-label">No surprise renewals</p>
+      <h2>We’ll remind you before your next charge.</h2>
+      <p>We’ll send you an email 3 days before your next subscription payment, so you know when your next box will be charged.</p>
+    </div>
+    
     <div class="offer">
       <div>
         <p class="eyebrow" id="planLabel"></p>
@@ -548,7 +584,30 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
   };
 
   var SCREENS = ['intro', 'question', 'loading', 'gate', 'result'];
-  var state = { i: 0, answers: {}, t0: Date.now(), events: [], lock: false, stage: 'intro' };
+  function getExperimentVariant() {
+    var key = 'morningDialBillingReminderVariant';
+  
+    try {
+      var saved = sessionStorage.getItem(key);
+      if (saved === 'control' || saved === 'reminder') return saved;
+  
+      var variant = Math.random() < 0.5 ? 'control' : 'reminder';
+      sessionStorage.setItem(key, variant);
+      return variant;
+    } catch (e) {
+      return Math.random() < 0.5 ? 'control' : 'reminder';
+    }
+  }
+
+  var state = {
+    i: 0,
+    answers: {},
+    t0: Date.now(),
+    events: [],
+    lock: false,
+    stage: 'intro',
+    variant: getExperimentVariant()
+  };
 
   function $(s) { return document.querySelector(s); }
 
@@ -923,6 +982,7 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
     $('#priceNote').textContent = 'First box with code DIAL15. ' + plan.cups + ' uses about ' + plan.grams + ' g in two weeks (roughly 18 g a cup).';
     $('#benefit').textContent = BENEFITS[state.answers.journey];
     $('#confirm').hidden = true;
+    $('#billingReminder').hidden = state.variant !== 'reminder';
     $('#copyBox').hidden = true;
     $('#confirmPlan').textContent = 'the ' + plan.grams + ' g ' + fmtName() + ' plan and ' + bagList(pf, plan).map(function (b) { return b.name; }).join(' and ');
     renderEvents();
@@ -935,7 +995,15 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
 
   function toResult() {
     renderResult();
-    track('result_view', 'profile=' + state.key + ' format=' + fmtName().replace(' ', '') + ' caf=' + state.answers.caf, { profile: state.key, format: fmtName(), caffeine: state.answers.caf, brew_method: state.answers.method, journey: state.answers.journey, plan_grams: PLANS[state.answers.cups].grams });
+    track('result_view', 'profile=' + state.key + ' format=' + fmtName().replace(' ', '') + ' caf=' + state.answers.caf + ' variant=' + state.variant, {
+      profile: state.key,
+      format: fmtName(),
+      caffeine: state.answers.caf,
+      brew_method: state.answers.method,
+      journey: state.answers.journey,
+      plan_grams: PLANS[state.answers.cups].grams,
+      variant: state.variant
+    });
     renderEvents();
     show('result');
   }
@@ -977,7 +1045,14 @@ details ol { margin: 12px 0 0; padding-left: 0; list-style: none; font-family: v
   $('#skipGate').addEventListener('click', function () { track('lead_skip'); toResult(); });
 
   $('#cta').addEventListener('click', function () {
-    track('cta_click', 'plan=' + PLANS[state.answers.cups].grams + 'g ' + fmtName().replace(' ', ''), { profile: state.key, format: fmtName(), caffeine: state.answers.caf, plan_grams: PLANS[state.answers.cups].grams, first_box_price: Math.round(PLANS[state.answers.cups].price * (1 - DISCOUNT) * 100) / 100 });
+    track('cta_click', 'plan=' + PLANS[state.answers.cups].grams + 'g ' + fmtName().replace(' ', '') + ' variant=' + state.variant, {
+      profile: state.key,
+      format: fmtName(),
+      caffeine: state.answers.caf,
+      plan_grams: PLANS[state.answers.cups].grams,
+      first_box_price: Math.round(PLANS[state.answers.cups].price * (1 - DISCOUNT) * 100) / 100,
+      variant: state.variant
+    });
     $('#confirm').hidden = false;
     renderEvents();
   });
